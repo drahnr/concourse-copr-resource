@@ -21,16 +21,9 @@ pub struct Input {
 	source : ResourceSource,
 }
 
-
-#[derive(Serialize, Deserialize)]
-pub struct Output {
-    // TODO this is one layer too much
-    version: Vec<ResourceVersion>,
-}
-
 pub fn execute(input: Input) -> Result<()> {
 	let mut digest = Whirlpool::new();
-	let mut digest_result = [0u8; 8];
+	let mut digest_result = [0u8; 64];
 
 	let path = Path::new(&input.source.srpm_path);
 	let path = path.to_str().ok_or(format!("Failed to convert path to string {:?}", path))?;
@@ -50,12 +43,14 @@ pub fn execute(input: Input) -> Result<()> {
 
     let mut v : Vec<ResourceVersion> = Vec::new();
 
-    let version_current = ResourceVersion { digest : digest_result, };
+    let mut x: [u8; 32] = Default::default();
+    x.copy_from_slice(&digest_result[0..32]);
+    let version_current = ResourceVersion { digest : x, };
     // TODO tell me I am pretty
     match input.version {
         Some(version) => {
-            if version != version {
-                v.push(version);
+            if version != version_current {
+                v.push(version_current);
             }
         },
         None => {}

@@ -28,7 +28,7 @@ pub struct ResourceParams {
 
 #[derive(Serialize, Deserialize)]
 pub struct ResourceVersion {
-	pub digest : [u8; 8],
+	pub digest : [u8; 32],
 }
 
 
@@ -44,18 +44,11 @@ impl PartialEq for ResourceVersion {
 impl fmt::Display for ResourceVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for &byte in self.digest.iter() {
-            write!(f, "_{:X}", byte)?;
+            write!(f, "{:X}", byte)?;
         }
         Ok(())
     }
 }
-
-pub enum VersionCheck{
-    Same,
-    Different(ResourceVersion,Option<ResourceVersion>),
-}
-
-
 
 
 
