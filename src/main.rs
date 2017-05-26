@@ -54,7 +54,7 @@ fn dispatch(args : &mut std::env::Args) -> Result<()> {
 	let mut handle = stdin.lock();
 	let handle = BufReader::new(handle);
 
-	let re = Regex::new(r"^(?:(?:(?:.*/)?opt/)?/resource/)?([^/]+)$").chain_err(||"Regex is shit")?;
+	let re = Regex::new(r"^(?:(?:\./|/opt/)(?:resource/)?)?([^/]+)$").chain_err(||"Regex is shit")?;
 	match re.captures(name.as_ref()) {
 		Some(caps) => {
 		    let x = caps.get(1).ok_or("Failed get first capture")?;
@@ -79,7 +79,7 @@ fn dispatch(args : &mut std::env::Args) -> Result<()> {
 				x => bail!("The file has to be named as either check/in/out but was {}", x),
 			};
 		},
-		None => bail!("File not in correct path"),
+		None => bail!("Resource binary not in correct path {}", name),
 	}
 	Ok(())
 }
