@@ -65,15 +65,15 @@ fn dispatch(args : &mut std::env::Args) -> Result<()> {
 					ops::rcheck::execute(input)?;
 				},
 				"in" => {
-					let path : String = args.nth(0).ok_or("[in] Missing commandline argument")?;
+					let path : String = args.next().ok_or("[in] Missing commandline argument")?;
 					let path = PathBuf::from(path);
-					let params : ops::rin::Params = serde_json::from_reader(handle).chain_err(|| "[in] Failed to parse json")?;
+					let params : ops::rin::Input = serde_json::from_reader(handle).chain_err(|| "[in] Failed to parse json")?;
 					ops::rin::execute(path, params)?;
 				},
 				"out" => {
-					let path : String = args.nth(0).ok_or("[out] Missing commandline argument")?;
+					let path : String = args.next().ok_or("[out] Missing commandline argument")?;
 					let path = PathBuf::from(path);
-					let params : ops::rout::Params = serde_json::from_reader(handle).chain_err(|| "[out] Failed to parse json")?;
+					let params : ops::rout::Input = serde_json::from_reader(handle).chain_err(|| "[out] Failed to parse json")?;
 					ops::rout::execute(path, params)?;
 				},
 				x => bail!("The file has to be named as either check/in/out but was {}", x),

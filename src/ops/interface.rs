@@ -1,11 +1,7 @@
 use std::vec::*;
-use serde::de::{self, Deserialize, Deserializer, Visitor, SeqAccess, MapAccess};
-use serde::ser::{Serialize,Serializer,SerializeSeq};
 use std::fmt;
 
-
 extern crate serde;
-use serde_json;
 
 #[derive(Serialize, Deserialize)]
 pub struct ResourceSource {
@@ -13,24 +9,33 @@ pub struct ResourceSource {
     pub username: String,
     pub token: String,
     pub url: String,
-    pub srpm_path : String,
+    pub project_id : u32,
+    pub srpm_regex : String,
 }
-
 
 #[derive(Serialize, Deserialize)]
 pub struct ResourceParams {
-    pub project_id : u32,
-    pub chroots: Vec<String>,
-    pub enable_net: bool,
-    pub max_n_bytes: u64,
+    pub chroots: Option<Vec<String>>,
+    pub enable_net: Option<bool>,
+    pub max_n_bytes: Option<u64>,
 }
 
+impl Default for ResourceParams {
+    fn default() -> Self {
+        let v = Vec::new();
+        v.push(String::from("fedora-25-x86_64"));
+        ResourceParams {
+            chroots : Some(v),
+            enable_net : Some(false),
+            max_n_bytes : Some(1_000_000_000),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct ResourceVersion {
 	pub digest : [u8; 32],
 }
-
 
 impl PartialEq for ResourceVersion {
     fn eq(&self, other: &Self) -> bool {
@@ -49,8 +54,6 @@ impl fmt::Display for ResourceVersion {
         Ok(())
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
