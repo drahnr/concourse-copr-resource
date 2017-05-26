@@ -10,7 +10,7 @@ pub struct ResourceSource {
     pub token: String,
     pub url: String,
     pub project_id : u32,
-    pub srpm_regex : String,
+    pub regex : String,
 }
 
 #[derive(Serialize, Deserialize)]
