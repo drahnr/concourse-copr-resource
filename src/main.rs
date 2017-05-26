@@ -2,7 +2,11 @@
 #![recursion_limit = "1024"]
 
 extern crate serde;
+
+#[macro_use]
 extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 
 extern crate regex;
 
@@ -16,7 +20,12 @@ extern crate error_chain;
 // `error_chain!` creates.
 mod errors {
     // Create the Error, ErrorKind, ResultExt, and Result types
-    error_chain!{}
+    use serde_json::error::Error as SerdeError;
+    error_chain! {
+        foreign_links {
+            Json(SerdeError);
+        }
+    }
 }
 
 
@@ -27,8 +36,6 @@ use errors::*;
 
 use regex::Regex;
 
-#[macro_use]
-extern crate serde_derive;
 
 use serde_json::Error;
 
@@ -50,23 +57,24 @@ fn dispatch(args : &mut std::env::Args) -> Result<()> {
 	let re = Regex::new(r"^(?:(?:(?:.*/)?opt/)?/resource/)?([^/]+)$").chain_err(||"Regex is shit")?;
 	match re.captures(name.as_ref()) {
 		Some(caps) => {
-		    let x = caps.get(1).ok_or("Failed get furst capture")?;
+		    let x = caps.get(1).ok_or("Failed get first capture")?;
 			match x.as_str() {
 				"check" => {
-					let params : ops::concourse_check::Params = serde_json::from_reader(handle).chain_err(|| "Failed to parse json")?;
-					ops::concourse_check::execute(params)?;
+					let input : ops::rcheck::Input = serde_json::from_reader(handle).chain_err(|| "Failed to parse json")?;
+					// let params : ops::rcheck::Output =
+					ops::rcheck::execute(input)?;
 				},
 				"in" => {
 					let path : String = args.nth(1).ok_or("Missing argument")?;
 					let path = PathBuf::from(path);
-					let params : ops::concourse_in::Params = serde_json::from_reader(handle).chain_err(|| "Failed to parse json")?;
-					ops::concourse_in::execute(path, params)?;
+					let params : ops::rin::Params = serde_json::from_reader(handle).chain_err(|| "Failed to parse json")?;
+					ops::rin::execute(path, params)?;
 				},
 				"out" => {
 					let path : String = args.nth(1).ok_or("Missing argument")?;
 					let path = PathBuf::from(path);
-					let params : ops::concourse_out::Params = serde_json::from_reader(handle).chain_err(|| "Failed to parse json")?;
-					ops::concourse_out::execute(path, params)?;
+					let params : ops::rout::Params = serde_json::from_reader(handle).chain_err(|| "Failed to parse json")?;
+					ops::rout::execute(path, params)?;
 				},
 				x => bail!("The file has to be named as either check/in/out but was {}", x),
 			};
