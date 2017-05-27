@@ -5,10 +5,10 @@ use errors::*;
 use ops::interface::*;
 
 #[derive(Serialize, Deserialize)]
-pub struct Params {
+pub struct Input {
 	x : String,
 }
 
-pub fn execute(path_to_srpm : PathBuf, json_params : Params) -> Result<()> {
+pub fn execute(dir : PathBuf, json_params : Input) -> Result<()> {
 	unimplemented!();
 }

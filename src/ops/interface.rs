@@ -22,7 +22,7 @@ pub struct ResourceParams {
 
 impl Default for ResourceParams {
     fn default() -> Self {
-        let v = Vec::new();
+        let mut v = Vec::new();
         v.push(String::from("fedora-25-x86_64"));
         ResourceParams {
             chroots : Some(v),

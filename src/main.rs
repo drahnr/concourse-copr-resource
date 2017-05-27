@@ -1,12 +1,17 @@
 // `error_chain!` can recurse deeply
 #![recursion_limit = "1024"]
 
+
+pub mod ops;
+
 extern crate serde;
 
 #[macro_use]
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+
+extern crate walkdir;
 
 extern crate regex;
 
@@ -21,9 +26,14 @@ extern crate error_chain;
 mod errors {
     // Create the Error, ErrorKind, ResultExt, and Result types
     use serde_json::error::Error as SerdeError;
+    use ops::error::{MiscError, ResponseError};
+    use walkdir::Error as WalkDirError;
     error_chain! {
         foreign_links {
             Json(SerdeError);
+            Response(ResponseError);
+            Misc(MiscError);
+            WalkDir(WalkDirError);
         }
     }
 }
@@ -43,7 +53,6 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 use std::io::BufReader;
 
-pub mod ops;
 
 fn dispatch(args : &mut std::env::Args) -> Result<()> {
 
