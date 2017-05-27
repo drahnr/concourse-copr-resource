@@ -1,10 +1,36 @@
 # copr resource for concourse
 
+A resource intended to make use of the copr infrastructure
+
 https://copr.fedoraproject.org/
 
 http://copr-rest-api.readthedocs.io/en/latest/index.html
 
-## source
+
+## usage
+
+	resource_types:
+	- name: copr
+	  type: docker-image
+	  source:
+	    repository: quay.io/ahoi/concourse-copr-resource
+
+	resources:
+	- name: copr-resource
+	  type: copr
+	  source:
+	    project_id: 825
+	    login: {{copr-login}}
+	    username: {{copr-username}}
+	    token: {{copr-token}}
+	    url: {{copr-url}}
+	    regex: ".*/oregano.*\\.src\\.rpm"
+
+## example
+
+See [oregano](https://github.com/drahnr/oregano) for up to date usage.
+
+### source
 
 * `username` copr username you use to log in on the web interface
 * `login` copr login
@@ -15,12 +41,16 @@ http://copr-rest-api.readthedocs.io/en/latest/index.html
 
 ### check
 
-`unimpletented!()`, always returns `[]` which means no new version
+always returns `[]` which means no new version, not intended to be checked for
 
 ### in
 
-`unimpletented!()`, always crashes
+`unimpletented!()`, not intended to be pulled in
 
 ### out
 
-TODO
+Pushes a local srpm to copr
+
+* `chroots` list of change roots, default: `["fedora-25-x86_64"]`
+* `enable_net` : enable only if you need the web for building the rpm from your srpm, default: `false`
+* `max_n_bytes` : the maximum total number of bytes to push, default: `1000000000`

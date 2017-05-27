@@ -98,7 +98,7 @@ pub fn execute(dir : PathBuf, input : Input) -> Result<()> {
 	                                      enable_net : enable_net,
 	                                     };
 
-    let path_srpm = find_srpm_regex_match(&dir, &input.source.regex).chain_err(||"Could not find any matches with that regex")?;
+	let path_srpm = find_srpm_regex_match(&dir, &input.source.regex).chain_err(||"Could not find any matches with that regex")?;
 	let path_srpm = path_srpm.ok_or(format!("No path found matching regex \"{}\"",input.source.regex))?;
 
 	let path_srpm_str = path_srpm.to_str().ok_or("No valid srpm path")?;
