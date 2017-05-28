@@ -9,12 +9,12 @@ pub struct ResourceSource {
     pub username: String,
     pub token: String,
     pub url: String,
-    pub project_id : u32,
-    pub regex : String,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct ResourceParams {
+	pub project_id : Option<u32>,
+	pub regex : Option<String>,
     pub chroots: Option<Vec<String>>,
     pub enable_net: Option<bool>,
     pub max_n_bytes: Option<u64>,
@@ -25,6 +25,8 @@ impl Default for ResourceParams {
         let mut v = Vec::new();
         v.push(String::from("fedora-25-x86_64"));
         ResourceParams {
+			project_id : None,
+			regex : Some(r".*\.src\.rpm".to_string()),
             chroots : Some(v),
             enable_net : Some(false),
             max_n_bytes : Some(1_000_000_000),

@@ -52,7 +52,7 @@ fn find_srpm_regex_match(dir : &PathBuf, srpm_regex : &String) -> Result<Option<
 
     for entry in WalkDir::new(&directory) {
     	let entry = entry.chain_err(||"WalkDir entry is useless")?;
-    	let x = entry.path().to_str().ok_or("Failed to convert path")?;
+	let x = entry.path().to_str().ok_or("Failed to convert path to string")?;
         match re.captures(x) {
             Some(_) => {
                 println!("{}", x);
@@ -89,17 +89,21 @@ fn calculate_whirlpool(path : &PathBuf) -> Result<[u8; 64]> {
 
 pub fn execute(dir : PathBuf, input : Input) -> Result<()> {
 
-    let params = input.params.unwrap_or_default();
+    let params = input.params.ok_or("We need some parameters")?;
+
+    let regex = params.regex.unwrap_or_default();
+    let project_id = params.project_id.ok_or("Missing project_id parameter")?;
+
     let chroots = params.chroots.unwrap_or_default();
     let enable_net = params.enable_net.unwrap_or_default();
     let max_n_bytes = params.max_n_bytes.unwrap_or_default();
-	let meta = MultipartRequestMetadata { project_id : input.source.project_id,
+	let meta = MultipartRequestMetadata { project_id : project_id,
 	                                      chroots : chroots,
 	                                      enable_net : enable_net,
 	                                     };
 
-	let path_srpm = find_srpm_regex_match(&dir, &input.source.regex).chain_err(||"Could not find any matches with that regex")?;
-	let path_srpm = path_srpm.ok_or(format!("No path found matching regex \"{}\"",input.source.regex))?;
+	let path_srpm = find_srpm_regex_match(&dir, &regex).chain_err(||"Could not find any matches with that regex")?;
+	let path_srpm = path_srpm.ok_or(format!("No path found matching regex \"{}\"",regex))?;
 
 	let path_srpm_str = path_srpm.to_str().ok_or("No valid srpm path")?;
 	let attr = metadata(path_srpm_str).chain_err(||"Failed to read metadata")?;

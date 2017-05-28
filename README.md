@@ -36,8 +36,6 @@ See [oregano](https://github.com/drahnr/oregano) for up to date usage.
 * `login` copr login
 * `token` copr token used to login in combination with `login`
 * `url` copr url, usually https://copr.fedorainfracloud.org or whatever you see while logged in at https://copr.fedoraproject.org/api/
-* `project_id` the associated project_id `curl -u "$LOGIN:$TOKEN" -X GET https://copr.fedorainfracloud.org/api_2/projects?name=$PROJECT_NAME | jq -r ".projects[].project.id"` to
-* `regex` regular expression to match the path to the srpm including the srpm name, capture the name as group if possible
 
 ### check
 
@@ -51,6 +49,9 @@ always returns `[]` which means no new version, not intended to be checked for
 
 Pushes a local srpm to copr
 
+* `project_id` the associated project_id `curl -u "$LOGIN:$TOKEN" -X GET https://copr.fedorainfracloud.org/api_2/projects?name=$PROJECT_NAME | jq -r ".projects[].project.id"` to
+* `regex` regular expression to match the path to the srpm including the srpm name, capture the name as group if possible
 * `chroots` list of change roots, default: `["fedora-25-x86_64"]`
 * `enable_net` : enable only if you need the web for building the rpm from your srpm, default: `false`
 * `max_n_bytes` : the maximum total number of bytes to push, default: `1000000000`
+
