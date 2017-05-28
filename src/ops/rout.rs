@@ -9,11 +9,16 @@ use self::crypto::digest::Digest;
 use self::crypto::whirlpool::Whirlpool;
 
 extern crate hyper;
+extern crate hyper_native_tls;
 extern crate multipart;
 
 use self::hyper::Client;
 use self::hyper::status::StatusCode;
 use self::hyper::mime::{Mime, TopLevel, SubLevel};
+use self::hyper::net::HttpsConnector;
+use self::hyper_native_tls::NativeTlsClient;
+
+
 
 use self::multipart::client::lazy::Multipart;
 
@@ -118,11 +123,18 @@ pub fn execute(dir : PathBuf, input : Input) -> Result<()> {
     let mime_srpm : Mime =  "application/x-rpm".parse().unwrap();
     let mime_json : Mime = "application/json".parse().unwrap();
 
+
+
+    let ssl = NativeTlsClient::new().chain_err(||"Failed to create native tls client")?;
+    let connector = HttpsConnector::new(ssl);
+    let client = Client::with_connector(connector);
+
+
     let meta_json = serde_json::to_string(&meta).chain_err(||"Failed to serialize metadata")?;
 	let response = Multipart::new()
 		.add_stream::<_,_,String>("metadata", meta_json.as_bytes(), None, Some(mime_json))
 		.add_stream::<_,_,String>("srpm", reader.take(max_n_bytes), Some(name_srpm), Some(mime_srpm))
-			.client_request(&Client::new(), input.source.url.trim()).chain_err(||"Failed to send request")?;
+			.client_request(&client, input.source.url.trim()).chain_err(||"Failed to send request")?;
 
 	match response.status {
 		StatusCode::BadRequest => { Err(ResponseError::InvalidRequest.into()) },
