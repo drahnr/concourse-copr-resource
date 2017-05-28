@@ -20,3 +20,6 @@ RUN echo http://nl.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories 
 	# As the final cleanup step we uninstall our virtual package
 	# This uninstalls cargo, rust and all dependencies that aren't needed anymore so they won't end up in the final image
 	&& apk del --purge .build-rust
+RUN apk add curl ca-certificates && \
+	update-ca-certificates && \
+	rm -rf /var/cache/apk/*
