@@ -17,15 +17,16 @@ use self::hyper::status::StatusCode;
 use self::hyper::mime::{Mime, TopLevel, SubLevel};
 use self::hyper::net::HttpsConnector;
 use self::hyper_native_tls::NativeTlsClient;
-
-
-
-use self::multipart::client::lazy::Multipart;
+use self::hyper::client::Request;
+use self::hyper::method::Method;
+use self::hyper::net::Streaming;
+use self::multipart::client::Multipart;
 
 use std::fs::{File,metadata};
 use std::io::prelude::*;
 use std::vec::*;
 use std::io::BufReader;
+use std::io::Write;
 use std::path::{PathBuf,Path};
 use regex::Regex;
 
@@ -112,8 +113,9 @@ pub fn execute(dir : PathBuf, input : Input) -> Result<()> {
 
 	let path_srpm_str = path_srpm.to_str().ok_or("No valid srpm path")?;
 	let attr = metadata(path_srpm_str).chain_err(||"Failed to read metadata")?;
-	if attr.len() > max_n_bytes {
-        bail!("srpm is too damn big, exceeds maximum byte size of {}", max_n_bytes);
+	let size_srpm = attr.len() as u64;
+	if size_srpm > max_n_bytes {
+        bail!("srpm is too damn big, {} exceeds maximum byte size of {}", size_srpm, max_n_bytes);
 	}
 	let mut f = File::open(path_srpm_str).chain_err(||"fun")?;
 	let mut reader = BufReader::new(f);
@@ -123,18 +125,23 @@ pub fn execute(dir : PathBuf, input : Input) -> Result<()> {
     let mime_srpm : Mime =  "application/x-rpm".parse().unwrap();
     let mime_json : Mime = "application/json".parse().unwrap();
 
-
-
     let ssl = NativeTlsClient::new().chain_err(||"Failed to create native tls client")?;
     let connector = HttpsConnector::new(ssl);
-    let client = Client::with_connector(connector);
 
+    let mut meta_json = serde_json::to_string(&meta).chain_err(||"Failed to serialize metadata")?;
 
-    let meta_json = serde_json::to_string(&meta).chain_err(||"Failed to serialize metadata")?;
-	let response = Multipart::new()
-		.add_stream::<_,_,String>("metadata", meta_json.as_bytes(), None, Some(mime_json))
-		.add_stream::<_,_,String>("srpm", reader.take(max_n_bytes), Some(name_srpm), Some(mime_srpm))
-			.client_request(&client, input.source.url.trim()).chain_err(||"Failed to send request")?;
+	let url = input.source.url.parse().chain_err(||"Failed to parse url")?;
+
+    let request = Request::with_connector(Method::Post, url, &connector).chain_err(||"Failed to create POST request")?;
+
+    let mut multipart = Multipart::from_request(request).chain_err(||"Failed to create multipart request")?;
+
+	multipart.write_stream::<_,_>("metadata", &mut meta_json.as_bytes(), None, Some(mime_json)).chain_err(||"Failed to prepare multipart metadata")?;
+	multipart.write_stream::<_,_>("srpm", &mut reader.take(max_n_bytes), Some(name_srpm.as_str()), Some(mime_srpm)).chain_err(||"Failed to prepare multipart srpm")?;
+
+	let response = multipart.send().chain_err(||"Failed to send request")?;
+
+	writeln!(&mut ::std::io::stderr(), "Response received: {:?}", response);
 
 	match response.status {
 		StatusCode::BadRequest => { Err(ResponseError::InvalidRequest.into()) },
