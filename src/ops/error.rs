@@ -5,8 +5,8 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum ResponseError {
-	InvalidRequest,
-	AuthentificationFailure,
+    InvalidRequest,
+    AuthentificationFailure,
 }
 
 impl fmt::Display for ResponseError {
@@ -25,7 +25,7 @@ impl error::Error for ResponseError {
         match *self {
             ResponseError::InvalidRequest => "BadRequest/400",
             ResponseError::AuthentificationFailure => "Forbidden/403",
-       }
+        }
     }
 
     fn cause(&self) -> Option<&error::Error> {
@@ -38,7 +38,7 @@ impl error::Error for ResponseError {
 
 #[derive(Debug)]
 pub enum MiscError {
-	X,
+    X,
 }
 
 impl fmt::Display for MiscError {
@@ -55,7 +55,7 @@ impl error::Error for MiscError {
         // implementations.
         match *self {
             MiscError::X => "X",
-       }
+        }
     }
 
     fn cause(&self) -> Option<&error::Error> {

@@ -6,9 +6,9 @@ use ops::interface::*;
 
 #[derive(Serialize, Deserialize)]
 pub struct Input {
-	x : String,
+    x: String,
 }
 
-pub fn execute(dir : PathBuf, json_params : Input) -> Result<()> {
-	unimplemented!();
+pub fn execute(dir: PathBuf, json_params: Input) -> Result<()> {
+    unimplemented!();
 }

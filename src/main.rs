@@ -54,49 +54,57 @@ use std::path::PathBuf;
 use std::io::BufReader;
 
 
-fn dispatch(args : &mut std::env::Args) -> Result<()> {
+fn dispatch(args: &mut std::env::Args) -> Result<()> {
 
-	let name = args.nth(0).ok_or("Who am I?")?;
+    let name = args.nth(0).ok_or("Who am I?")?;
 
-	// read params from stdin
-	let stdin = std::io::stdin();
-	let mut handle = stdin.lock();
-	let handle = BufReader::new(handle);
+    // read params from stdin
+    let stdin = std::io::stdin();
+    let mut handle = stdin.lock();
+    let handle = BufReader::new(handle);
 
-	let re = Regex::new(r"^(?:(?:\./|/opt/)(?:resource/)?)?([^/]+)$").chain_err(||"Regex is shit")?;
-	match re.captures(name.as_ref()) {
-		Some(caps) => {
-		    let x = caps.get(1).ok_or("Failed to get first capture")?;
-			match x.as_str() {
-				"check" => {
-					let input : ops::rcheck::Input = serde_json::from_reader(handle).chain_err(|| "[check] Failed to parse json")?;
-					// let params : ops::rcheck::Output =
-					ops::rcheck::execute(input)?;
-				},
-				"in" => {
-					let path : String = args.next().ok_or("[in] Missing commandline argument")?;
-					let path = PathBuf::from(path);
-					let params : ops::rin::Input = serde_json::from_reader(handle).chain_err(|| "[in] Failed to parse json")?;
-					ops::rin::execute(path, params)?;
-				},
-				"out" => {
-					let path : String = args.next().ok_or("[out] Missing commandline argument")?;
-					let path = PathBuf::from(path);
-					let params : ops::rout::Input = serde_json::from_reader(handle).chain_err(|| "[out] Failed to parse json")?;
-					ops::rout::execute(path, params)?;
-				},
-				x => bail!("The file has to be named as either check/in/out but was {}", x),
-			};
-		},
-		None => bail!("Resource binary not in correct path {}", name),
-	}
-	Ok(())
+    let re = Regex::new(r"^(?:(?:\./|/opt/)(?:resource/)?)?([^/]+)$")
+        .chain_err(|| "Regex is shit")?;
+    match re.captures(name.as_ref()) {
+        Some(caps) => {
+            let x = caps.get(1).ok_or("Failed to get first capture")?;
+            match x.as_str() {
+                "check" => {
+                    let input: ops::rcheck::Input =
+                        serde_json::from_reader(handle)
+                            .chain_err(|| "[check] Failed to parse json")?;
+                    // let params : ops::rcheck::Output =
+                    ops::rcheck::execute(input)?;
+                }
+                "in" => {
+                    let path: String = args.next().ok_or("[in] Missing commandline argument")?;
+                    let path = PathBuf::from(path);
+                    let params: ops::rin::Input = serde_json::from_reader(handle)
+                        .chain_err(|| "[in] Failed to parse json")?;
+                    ops::rin::execute(path, params)?;
+                }
+                "out" => {
+                    let path: String = args.next().ok_or("[out] Missing commandline argument")?;
+                    let path = PathBuf::from(path);
+                    let params: ops::rout::Input = serde_json::from_reader(handle)
+                        .chain_err(|| "[out] Failed to parse json")?;
+                    ops::rout::execute(path, params)?;
+                }
+                x => {
+                    bail!("The file has to be named as either check/in/out but was {}",
+                          x)
+                }
+            };
+        }
+        None => bail!("Resource binary not in correct path {}", name),
+    }
+    Ok(())
 }
 
 
 fn main() {
-	let mut args = std::env::args();
-	if let Err(e) = dispatch(&mut args) {
+    let mut args = std::env::args();
+    if let Err(e) = dispatch(&mut args) {
         use std::io::Write;
         let stderr = &mut ::std::io::stderr();
         let errmsg = "Error writing to stderr";
@@ -113,5 +121,5 @@ fn main() {
             writeln!(stderr, "backtrace: {:?}", backtrace).expect(errmsg);
         }
         ::std::process::exit(1);
-	}
+    }
 }
