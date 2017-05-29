@@ -1,6 +1,9 @@
 FROM alpine:edge
 COPY ./ /app
 WORKDIR /app
+RUN apk add --no-cache ca-certificates \
+	&& apk add --no-cache curl \
+	&& update-ca-certificates
 RUN echo http://nl.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories \
 	# llvm-libunwind is required to run the final rust binary, so we install it first
 	&& apk add --no-cache llvm-libunwind \
@@ -19,7 +22,5 @@ RUN echo http://nl.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories 
 	&& rm -rf target/ \
 	# As the final cleanup step we uninstall our virtual package
 	# This uninstalls cargo, rust and all dependencies that aren't needed anymore so they won't end up in the final image
-	&& apk del --purge .build-rust
-RUN apk add curl ca-certificates && \
-	update-ca-certificates && \
-	rm -rf /var/cache/apk/*
+	&& apk del --purge .build-rust \
+	&& rm -rf /var/cache/apk/*
