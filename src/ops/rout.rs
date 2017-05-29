@@ -14,12 +14,13 @@ extern crate multipart;
 
 use self::hyper::Client;
 use self::hyper::status::StatusCode;
-use self::hyper::mime::{Mime, TopLevel, SubLevel};
+use self::hyper::mime::{Mime, TopLevel, SubLevel, Attr, Value};
 use self::hyper::net::HttpsConnector;
 use self::hyper_native_tls::NativeTlsClient;
 use self::hyper::client::Request;
 use self::hyper::method::Method;
 use self::hyper::net::Streaming;
+use self::hyper::header::{ContentLength,ContentType};
 use self::multipart::client::Multipart;
 
 use std::fs::{File,metadata};
@@ -34,8 +35,6 @@ use serde_json;
 
 use ops::interface::*;
 use ops::error::ResponseError;
-
-use errors::Error;
 
 #[derive(Serialize, Deserialize)]
 pub struct Input {
@@ -132,7 +131,21 @@ pub fn execute(dir : PathBuf, input : Input) -> Result<()> {
 
 	let url = input.source.url.parse().chain_err(||"Failed to parse url")?;
 
-    let request = Request::with_connector(Method::Post, url, &connector).chain_err(||"Failed to create POST request")?;
+	let boundary = "stuff";
+
+    let mut request = Request::with_connector(Method::Post, url, &connector)
+   					.chain_err(||"Failed to create POST request")?;
+    request.headers_mut().set(
+			ContentType(
+		 		Mime(
+		 			TopLevel::Multipart, SubLevel::Ext("form-data".into()),
+		 			vec![(Attr::Ext("boundary".into()), Value::Ext(boundary.into()))]
+		 			)
+		 		)
+		 	);
+	let total_len : u64 = meta_json.len() as u64 + size_srpm as u64;
+    request.headers_mut().set(ContentLength(total_len));
+	println!("total len {}", total_len);
 
     let mut multipart = Multipart::from_request(request).chain_err(||"Failed to create multipart request")?;
 
