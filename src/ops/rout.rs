@@ -35,18 +35,14 @@ impl MultipartRequest {
     }
 
 	pub fn add_stream<R>(&mut self, name : &str, stream : &mut R, filename : Option<&str>, content_type : Option<Mime>) -> Result<()> where R: Read {
-        write!(self.buffer, "--{}\r\n", self.boundary).chain_err(||"")?;
-        write!(self.buffer, "Content-Disposition: form-data; name=\"{}\"", name).chain_err(||"")?;
+        write!(self.buffer, "--{}\r\n", self.boundary).chain_err(||"Failed to write header")?;
+        write!(self.buffer, "Content-Disposition: form-data; name=\"{}\"", name).chain_err(||"Failed to write header")?;
         filename.map(|filename| write!(self.buffer, "; filename=\"{}\"", filename));
         content_type.map(|content_type| write!(self.buffer, "\r\nContent-Type: {}", content_type));
-        self.buffer.write_all(b"\r\n\r\n").chain_err(||"")?;
+		self.buffer.write_all(b"\r\n\r\n").chain_err(||"Failed to write closing line breaks of block header")?;
 
-		//{
-		//let x = String::from_utf8_lossy(&self.buffer as &[u8]);
-		//println!("buffer {:?}\n", x);
-		//}
-		io::copy(stream, &mut self.buffer).chain_err(||"")?;
-		self.buffer.write_all(b"\r\n\r\n").chain_err(||"")?;
+		io::copy(stream, &mut self.buffer).chain_err(||"Failed to copy stream content")?;
+		self.buffer.write_all(b"\r\n\r\n").chain_err(||"Failed to write closing line breaks of block body")?;
 
 		Ok(())
 	}
