@@ -148,6 +148,8 @@ pub struct MultipartRequestMetadata {
 
 fn find_srpm_regex_match(dir: &PathBuf, srpm_regex: &String) -> Result<Option<PathBuf>> {
 
+    writeln!(&mut ::std::io::stderr(), "base dir: {:?}", dir);
+
     let re = Regex::new(srpm_regex)
         .chain_err(|| "srpm regex failed to parse")?;
 
@@ -157,14 +159,14 @@ fn find_srpm_regex_match(dir: &PathBuf, srpm_regex: &String) -> Result<Option<Pa
         let entry = entry.chain_err(|| "WalkDir entry is useless")?;
         let path = entry.path();
         if path.is_file() {
-            let x = path.to_str().ok_or("Failed to convert path to string")?;
-            match re.captures(x) {
-                Some(_) => {
-                    writeln!(&mut ::std::io::stderr(), "path: {:?}", path);
-                    return Ok(Some(PathBuf::from(x)));
-                }
-                None => {}
+            writeln!(&mut ::std::io::stderr(), "Checking path: {:?}", path);
+            let path_str = path.to_str().ok_or("Failed to convert path to string")?;
+            if re.is_match(path_str) {
+                    writeln!(&mut ::std::io::stderr(), "Final pick: {:?}", path);
+                    return Ok(Some(PathBuf::from(path_str)));
             }
+        } else {
+            writeln!(&mut ::std::io::stderr(), "Not a file: {:?}", path);
         }
     }
     Ok(None)
@@ -282,11 +284,12 @@ pub fn execute(dir: PathBuf, input: Input) -> Result<()> {
         StatusCode::Created => {
             let digest = calculate_whirlpool(&path_srpm)
                 .chain_err(|| "Failed to calculate digest")?;
+            // TODO implement serialize for 64 bits instead of cropping
             let mut snip = [0u8; 32];
             snip.copy_from_slice(&digest[0..32]);
             let version = ResourceVersion { digest: snip };
 
-            writeln!(&mut ::std::io::stderr(), "version: {}", version);
+            writeln!(&mut ::std::io::stderr(), "digest: {}", version);
 
             let version = serde_json::to_string(&version)
                 .chain_err(|| "Failed to convert version to json")?;
