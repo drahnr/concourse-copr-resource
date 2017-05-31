@@ -6,7 +6,6 @@ extern crate serde;
 #[derive(Serialize, Deserialize)]
 pub struct ResourceSource {
     pub login: String,
-    pub username: String,
     pub token: String,
     pub url: String,
 }
