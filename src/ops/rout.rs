@@ -1,6 +1,5 @@
 use errors::*;
 
-
 use walkdir::WalkDir;
 
 extern crate crypto;
@@ -10,18 +9,96 @@ use self::crypto::whirlpool::Whirlpool;
 
 extern crate hyper;
 extern crate hyper_native_tls;
-extern crate multipart;
 
 use self::hyper::Client;
 use self::hyper::status::StatusCode;
 use self::hyper::mime::{Mime, TopLevel, SubLevel, Attr, Value};
-use self::hyper::net::HttpsConnector;
 use self::hyper_native_tls::NativeTlsClient;
 use self::hyper::client::Request;
 use self::hyper::method::Method;
-use self::hyper::net::Streaming;
-use self::hyper::header::{ContentLength, ContentType};
-use self::multipart::client::Multipart;
+use self::hyper::net::{HttpsConnector,Fresh,Streaming};
+use self::hyper::header::{ContentLength, ContentType, Authorization, Basic};
+use self::hyper::client::response::Response;
+
+use std::io;
+
+struct MultipartRequest {
+	boundary : String,
+	request : Request<Fresh>,
+	buffer : Vec<u8>,
+}
+
+impl MultipartRequest {
+
+    pub fn from_request(request: Request<Fresh>, boundary : Option<&str>) -> Result<MultipartRequest> {
+		Ok(MultipartRequest { request : request, buffer : Vec::new(), boundary : boundary.unwrap_or("random").to_string()})
+    }
+
+	pub fn add_stream<R>(&mut self, name : &str, stream : &mut R, filename : Option<&str>, content_type : Option<Mime>) -> Result<()> where R: Read {
+        write!(self.buffer, "--{}\r\n", self.boundary).chain_err(||"")?;
+        write!(self.buffer, "Content-Disposition: form-data; name=\"{}\"", name).chain_err(||"")?;
+        filename.map(|filename| write!(self.buffer, "; filename=\"{}\"", filename));
+        content_type.map(|content_type| write!(self.buffer, "\r\nContent-Type: {}", content_type));
+        self.buffer.write_all(b"\r\n\r\n").chain_err(||"")?;
+
+		//{
+		//let x = String::from_utf8_lossy(&self.buffer as &[u8]);
+		//println!("buffer {:?}\n", x);
+		//}
+		io::copy(stream, &mut self.buffer).chain_err(||"")?;
+		self.buffer.write_all(b"\r\n\r\n").chain_err(||"")?;
+
+		Ok(())
+	}
+
+	pub fn send(mut self, username: String, password : Option<String>) -> Result<Response> {
+		write!(self.buffer, "--{}--\r\n", self.boundary).chain_err(||"Failed to write closing")?;
+
+		{
+		    let headers = self.request.headers_mut();
+
+		    headers.set(ContentType(multipart_mime(self.boundary.as_str())));
+		    headers.set(ContentLength(self.buffer.len() as u64));
+			headers.set(Authorization(Basic{username, password}));
+		}
+
+		let mut req : Request<Streaming> = self.request.start().chain_err(||"Failed to write request header")?;
+		req.write_all(&self.buffer as &[u8]).chain_err(||"Failed to write request body")?;
+		let resp = req.send().chain_err(||"Failed to send request")?;
+		Ok(resp)
+	}
+}
+
+
+
+/// Create a `Content-Type: multipart/form-data;boundary={bound}`
+pub fn content_type(bound: &str) -> ContentType {
+    ContentType(multipart_mime(bound))
+}
+
+fn multipart_mime(bound: &str) -> Mime {
+		Mime(
+		    TopLevel::Multipart, SubLevel::Ext("form-data".into()),
+		    vec![(Attr::Ext("boundary".into()), Value::Ext(bound.into()))]
+		)
+	}
+
+
+// let resp : hyper::Request<Streaming> = MultipartRequest::new()?.
+// .add_stream(...)?
+// .add_stream(...)?
+// .send()?;
+
+
+
+
+
+
+
+
+
+
+
 
 use std::fs::{File, metadata};
 use std::io::prelude::*;
@@ -155,29 +232,23 @@ pub fn execute(dir: PathBuf, input: Input) -> Result<()> {
 
     let mut request = Request::with_connector(Method::Post, url, &connector)
         .chain_err(|| "Failed to create POST request")?;
-    request
-        .headers_mut()
-        .set(ContentType(Mime(TopLevel::Multipart,
-                              SubLevel::Ext("form-data".into()),
-                              vec![(Attr::Ext("boundary".into()), Value::Ext(boundary.into()))])));
-    let total_len: u64 = meta_json.len() as u64 + size_srpm as u64;
-    request.headers_mut().set(ContentLength(total_len));
-    writeln!(&mut ::std::io::stderr(), "total len {}", total_len);
 
-    let mut multipart = Multipart::from_request(request)
+	let boundary = "randomarbitrarystuff";
+
+    let mut multipart = MultipartRequest::from_request(request, Some(&boundary))
         .chain_err(|| "Failed to create multipart request")?;
 
     multipart
-        .write_stream::<_, _>("metadata", &mut meta_json.as_bytes(), None, Some(mime_json))
+        .add_stream("metadata", &mut meta_json.as_bytes(), None, Some(mime_json))
         .chain_err(|| "Failed to prepare multipart metadata")?;
     multipart
-        .write_stream::<_, _>("srpm",
+        .add_stream("srpm",
                               &mut reader.take(max_n_bytes),
                               Some(name_srpm.as_str()),
                               Some(mime_srpm))
         .chain_err(|| "Failed to prepare multipart srpm")?;
 
-    let response = multipart.send().chain_err(|| "Failed to send request")?;
+    let response = multipart.send(input.source.login, Some(input.source.token)).chain_err(|| "Failed to send request")?;
 
     writeln!(&mut ::std::io::stderr(),
              "Response received: {:?}",

@@ -15,6 +15,8 @@ extern crate walkdir;
 
 extern crate regex;
 
+extern crate random;
+
 // Import the macro. Don't forget to add `error-chain` in your
 // `Cargo.toml`!
 #[macro_use]
