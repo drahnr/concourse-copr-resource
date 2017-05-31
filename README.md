@@ -33,7 +33,7 @@ See [oregano](https://github.com/drahnr/oregano) for up to date usage.
 
 * `login` copr login as provided by the API page
 * `token` copr token used to login in combination with `login`
-* `url` copr url, usually https://copr.fedorainfracloud.org/api_2/builds or whatever you see while logged in at https://copr.fedoraproject.org/api/
+* `url` copr url, usually `https://copr.fedorainfracloud.org/api_2/builds` or whatever you see while logged in with [copr](https://copr.fedoraproject.org/api/)
 
 ### check
 
@@ -47,6 +47,7 @@ always returns `[]` which means no new version, not intended to be checked for
 
 Pushes a local srpm to copr
 
+* `rpmbuild_dir` the path to the `rpmbuild` base directory which is expected to contain the srpm somewhere underneath
 * `project_id` the associated project_id `curl -u "$LOGIN:$TOKEN" -X GET https://copr.fedorainfracloud.org/api_2/projects?name=$PROJECT_NAME | jq -r ".projects[].project.id"` to
 * `regex` regular expression to match the path to the srpm including the srpm name, capture the name as group if possible, if multiple match, the first one is choosen - the default should be fine
 * `chroots` list of change roots, default: `["fedora-25-x86_64"]`
