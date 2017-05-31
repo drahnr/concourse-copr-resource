@@ -16,53 +16,78 @@ use self::hyper::mime::{Mime, TopLevel, SubLevel, Attr, Value};
 use self::hyper_native_tls::NativeTlsClient;
 use self::hyper::client::Request;
 use self::hyper::method::Method;
-use self::hyper::net::{HttpsConnector,Fresh,Streaming};
+use self::hyper::net::{HttpsConnector, Fresh, Streaming};
 use self::hyper::header::{ContentLength, ContentType, Authorization, Basic};
 use self::hyper::client::response::Response;
 
 use std::io;
 
 struct MultipartRequest {
-	boundary : String,
-	request : Request<Fresh>,
-	buffer : Vec<u8>,
+    boundary: String,
+    request: Request<Fresh>,
+    buffer: Vec<u8>,
 }
 
 impl MultipartRequest {
-
-    pub fn from_request(request: Request<Fresh>, boundary : Option<&str>) -> Result<MultipartRequest> {
-		Ok(MultipartRequest { request : request, buffer : Vec::new(), boundary : boundary.unwrap_or("random").to_string()})
+    pub fn from_request(request: Request<Fresh>,
+                        boundary: Option<&str>)
+                        -> Result<MultipartRequest> {
+        Ok(MultipartRequest {
+               request: request,
+               buffer: Vec::new(),
+               boundary: boundary.unwrap_or("random").to_string(),
+           })
     }
 
-	pub fn add_stream<R>(&mut self, name : &str, stream : &mut R, filename : Option<&str>, content_type : Option<Mime>) -> Result<()> where R: Read {
-        write!(self.buffer, "--{}\r\n", self.boundary).chain_err(||"Failed to write header")?;
-        write!(self.buffer, "Content-Disposition: form-data; name=\"{}\"", name).chain_err(||"Failed to write header")?;
+    pub fn add_stream<R>(&mut self,
+                         name: &str,
+                         stream: &mut R,
+                         filename: Option<&str>,
+                         content_type: Option<Mime>)
+                         -> Result<()>
+        where R: Read
+    {
+        write!(self.buffer, "--{}\r\n", self.boundary)
+            .chain_err(|| "Failed to write header")?;
+        write!(self.buffer,
+               "Content-Disposition: form-data; name=\"{}\"",
+               name)
+                .chain_err(|| "Failed to write header")?;
         filename.map(|filename| write!(self.buffer, "; filename=\"{}\"", filename));
         content_type.map(|content_type| write!(self.buffer, "\r\nContent-Type: {}", content_type));
-		self.buffer.write_all(b"\r\n\r\n").chain_err(||"Failed to write closing line breaks of block header")?;
+        self.buffer
+            .write_all(b"\r\n\r\n")
+            .chain_err(|| "Failed to write closing line breaks of block header")?;
 
-		io::copy(stream, &mut self.buffer).chain_err(||"Failed to copy stream content")?;
-		self.buffer.write_all(b"\r\n\r\n").chain_err(||"Failed to write closing line breaks of block body")?;
+        io::copy(stream, &mut self.buffer)
+            .chain_err(|| "Failed to copy stream content")?;
+        self.buffer
+            .write_all(b"\r\n\r\n")
+            .chain_err(|| "Failed to write closing line breaks of block body")?;
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	pub fn send(mut self, username: String, password : Option<String>) -> Result<Response> {
-		write!(self.buffer, "--{}--\r\n", self.boundary).chain_err(||"Failed to write closing")?;
+    pub fn send(mut self, username: String, password: Option<String>) -> Result<Response> {
+        write!(self.buffer, "--{}--\r\n", self.boundary)
+            .chain_err(|| "Failed to write closing")?;
 
-		{
-		    let headers = self.request.headers_mut();
+        {
+            let headers = self.request.headers_mut();
 
-		    headers.set(ContentType(multipart_mime(self.boundary.as_str())));
-		    headers.set(ContentLength(self.buffer.len() as u64));
-			headers.set(Authorization(Basic{username, password}));
-		}
+            headers.set(ContentType(multipart_mime(self.boundary.as_str())));
+            headers.set(ContentLength(self.buffer.len() as u64));
+            headers.set(Authorization(Basic { username, password }));
+        }
 
-		let mut req : Request<Streaming> = self.request.start().chain_err(||"Failed to write request header")?;
-		req.write_all(&self.buffer as &[u8]).chain_err(||"Failed to write request body")?;
-		let resp = req.send().chain_err(||"Failed to send request")?;
-		Ok(resp)
-	}
+        let mut req: Request<Streaming> = self.request
+            .start()
+            .chain_err(|| "Failed to write request header")?;
+        req.write_all(&self.buffer as &[u8])
+            .chain_err(|| "Failed to write request body")?;
+        let resp = req.send().chain_err(|| "Failed to send request")?;
+        Ok(resp)
+    }
 }
 
 
@@ -73,11 +98,10 @@ pub fn content_type(bound: &str) -> ContentType {
 }
 
 fn multipart_mime(bound: &str) -> Mime {
-		Mime(
-		    TopLevel::Multipart, SubLevel::Ext("form-data".into()),
-		    vec![(Attr::Ext("boundary".into()), Value::Ext(bound.into()))]
-		)
-	}
+    Mime(TopLevel::Multipart,
+         SubLevel::Ext("form-data".into()),
+         vec![(Attr::Ext("boundary".into()), Value::Ext(bound.into()))])
+}
 
 
 // let resp : hyper::Request<Streaming> = MultipartRequest::new()?.
@@ -131,16 +155,16 @@ fn find_srpm_regex_match(dir: &PathBuf, srpm_regex: &String) -> Result<Option<Pa
 
     for entry in WalkDir::new(&directory) {
         let entry = entry.chain_err(|| "WalkDir entry is useless")?;
-        let x = entry
-            .path()
-            .to_str()
-            .ok_or("Failed to convert path to string")?;
-        match re.captures(x) {
-            Some(_) => {
-                println!("{}", x);
-                return Ok(Some(PathBuf::from(x)));
+        let path = entry.path();
+        if path.is_file() {
+            let x = path.to_str().ok_or("Failed to convert path to string")?;
+            match re.captures(x) {
+                Some(_) => {
+                    writeln!(&mut ::std::io::stderr(), "path: {:?}", path);
+                    return Ok(Some(PathBuf::from(x)));
+                }
+                None => {}
             }
-            None => {}
         }
     }
     Ok(None)
@@ -229,7 +253,7 @@ pub fn execute(dir: PathBuf, input: Input) -> Result<()> {
     let mut request = Request::with_connector(Method::Post, url, &connector)
         .chain_err(|| "Failed to create POST request")?;
 
-	let boundary = "randomarbitrarystuff";
+    let boundary = "randomarbitrarystuff";
 
     let mut multipart = MultipartRequest::from_request(request, Some(&boundary))
         .chain_err(|| "Failed to create multipart request")?;
@@ -239,12 +263,14 @@ pub fn execute(dir: PathBuf, input: Input) -> Result<()> {
         .chain_err(|| "Failed to prepare multipart metadata")?;
     multipart
         .add_stream("srpm",
-                              &mut reader.take(max_n_bytes),
-                              Some(name_srpm.as_str()),
-                              Some(mime_srpm))
+                    &mut reader.take(max_n_bytes),
+                    Some(name_srpm.as_str()),
+                    Some(mime_srpm))
         .chain_err(|| "Failed to prepare multipart srpm")?;
 
-    let response = multipart.send(input.source.login, Some(input.source.token)).chain_err(|| "Failed to send request")?;
+    let response = multipart
+        .send(input.source.login, Some(input.source.token))
+        .chain_err(|| "Failed to send request")?;
 
     writeln!(&mut ::std::io::stderr(),
              "Response received: {:?}",
