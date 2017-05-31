@@ -12,6 +12,7 @@ pub struct ResourceSource {
 
 #[derive(Serialize, Deserialize)]
 pub struct ResourceParams {
+    pub rpmbuild_dir: String,
     pub project_id: Option<u32>,
     pub regex: Option<String>,
     pub chroots: Option<Vec<String>>,
@@ -24,6 +25,7 @@ impl Default for ResourceParams {
         let mut v = Vec::new();
         v.push(String::from("fedora-25-x86_64"));
         ResourceParams {
+            rpmbuild_dir: ".".to_string(),
             project_id: None,
             regex: Some(r".*\.src\.rpm".to_string()),
             chroots: Some(v),

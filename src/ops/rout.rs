@@ -192,7 +192,7 @@ fn calculate_whirlpool(path: &PathBuf) -> Result<[u8; 64]> {
 }
 
 
-pub fn execute(dir: PathBuf, input: Input) -> Result<()> {
+pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
 
     let params = input.params.ok_or("We need some parameters")?;
 
@@ -207,6 +207,7 @@ pub fn execute(dir: PathBuf, input: Input) -> Result<()> {
         chroots: chroots,
         enable_net: enable_net,
     };
+    dir.push(params.rpmbuild_dir);
 
     let path_srpm = find_srpm_regex_match(&dir, &regex)
         .chain_err(|| "Could not find any matches with that regex")?;
