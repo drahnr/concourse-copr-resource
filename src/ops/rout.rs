@@ -159,14 +159,11 @@ fn find_srpm_regex_match(dir: &PathBuf, srpm_regex: &String) -> Result<Option<Pa
         let entry = entry.chain_err(|| "WalkDir entry is useless")?;
         let path = entry.path();
         if path.is_file() {
-            writeln!(&mut ::std::io::stderr(), "Checking path: {:?}", path);
             let path_str = path.to_str().ok_or("Failed to convert path to string")?;
             if re.is_match(path_str) {
                     writeln!(&mut ::std::io::stderr(), "Final pick: {:?}", path);
                     return Ok(Some(PathBuf::from(path_str)));
             }
-        } else {
-            writeln!(&mut ::std::io::stderr(), "Not a file: {:?}", path);
         }
     }
     Ok(None)
