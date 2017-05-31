@@ -253,7 +253,7 @@ pub fn execute(dir: PathBuf, input: Input) -> Result<()> {
     match response.status {
         StatusCode::BadRequest => Err(ResponseError::InvalidRequest.into()),
         StatusCode::Forbidden => Err(ResponseError::AuthentificationFailure.into()),
-        StatusCode::Ok => {
+        StatusCode::Created => {
             let digest = calculate_whirlpool(&path_srpm)
                 .chain_err(|| "Failed to calculate digest")?;
             let mut snip = [0u8; 32];
