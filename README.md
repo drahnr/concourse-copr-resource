@@ -41,7 +41,7 @@ always returns `[]` which means no new version, not intended to be checked for
 
 ### in
 
-`unimpletented!()`, not intended to be pulled in
+`nop`, not intended to be pulled in
 
 ### out
 

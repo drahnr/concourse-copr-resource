@@ -9,5 +9,5 @@ pub struct Input {
 }
 
 pub fn execute(dir: PathBuf, json_params: Input) -> Result<()> {
-    unimplemented!();
+    Ok(())
 }
