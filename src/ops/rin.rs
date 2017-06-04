@@ -2,12 +2,9 @@ use std::path::PathBuf;
 
 use errors::*;
 
-use ops::interface::*;
-
 #[derive(Serialize, Deserialize)]
-pub struct Input {
-}
+pub struct Input {}
 
-pub fn execute(dir: PathBuf, json_params: Input) -> Result<()> {
+pub fn execute(_dir: PathBuf, _json_params: Input) -> Result<()> {
     Ok(())
 }

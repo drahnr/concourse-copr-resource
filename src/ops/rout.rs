@@ -2,136 +2,28 @@ use errors::*;
 
 use walkdir::WalkDir;
 
-extern crate crypto;
-
-use self::crypto::digest::Digest;
-use self::crypto::whirlpool::Whirlpool;
-
-extern crate hyper;
-extern crate hyper_native_tls;
-
-use self::hyper::Client;
-use self::hyper::status::StatusCode;
-use self::hyper::mime::{Mime, TopLevel, SubLevel, Attr, Value};
-use self::hyper_native_tls::NativeTlsClient;
-use self::hyper::client::Request;
-use self::hyper::method::Method;
-use self::hyper::net::{HttpsConnector, Fresh, Streaming};
-use self::hyper::header::{ContentLength, ContentType, Authorization, Basic};
-use self::hyper::client::response::Response;
-
-use std::io;
-
-struct MultipartRequest {
-    boundary: String,
-    request: Request<Fresh>,
-    buffer: Vec<u8>,
-}
-
-impl MultipartRequest {
-    pub fn from_request(request: Request<Fresh>,
-                        boundary: Option<&str>)
-                        -> Result<MultipartRequest> {
-        Ok(MultipartRequest {
-               request: request,
-               buffer: Vec::new(),
-               boundary: boundary.unwrap_or("random").to_string(),
-           })
-    }
-
-    pub fn add_stream<R>(&mut self,
-                         name: &str,
-                         stream: &mut R,
-                         filename: Option<&str>,
-                         content_type: Option<Mime>)
-                         -> Result<()>
-        where R: Read
-    {
-        write!(self.buffer, "--{}\r\n", self.boundary)
-            .chain_err(|| "Failed to write header")?;
-        write!(self.buffer,
-               "Content-Disposition: form-data; name=\"{}\"",
-               name)
-                .chain_err(|| "Failed to write header")?;
-        filename.map(|filename| write!(self.buffer, "; filename=\"{}\"", filename));
-        content_type.map(|content_type| write!(self.buffer, "\r\nContent-Type: {}", content_type));
-        self.buffer
-            .write_all(b"\r\n\r\n")
-            .chain_err(|| "Failed to write closing line breaks of block header")?;
-
-        io::copy(stream, &mut self.buffer)
-            .chain_err(|| "Failed to copy stream content")?;
-        self.buffer
-            .write_all(b"\r\n\r\n")
-            .chain_err(|| "Failed to write closing line breaks of block body")?;
-
-        Ok(())
-    }
-
-    pub fn send(mut self, username: String, password: Option<String>) -> Result<Response> {
-        write!(self.buffer, "--{}--\r\n", self.boundary)
-            .chain_err(|| "Failed to write closing")?;
-
-        {
-            let headers = self.request.headers_mut();
-
-            headers.set(ContentType(multipart_mime(self.boundary.as_str())));
-            headers.set(ContentLength(self.buffer.len() as u64));
-            headers.set(Authorization(Basic { username, password }));
-        }
-
-        let mut req: Request<Streaming> = self.request
-            .start()
-            .chain_err(|| "Failed to write request header")?;
-        req.write_all(&self.buffer as &[u8])
-            .chain_err(|| "Failed to write request body")?;
-        let resp = req.send().chain_err(|| "Failed to send request")?;
-        Ok(resp)
-    }
-}
-
-
-
-/// Create a `Content-Type: multipart/form-data;boundary={bound}`
-pub fn content_type(bound: &str) -> ContentType {
-    ContentType(multipart_mime(bound))
-}
-
-fn multipart_mime(bound: &str) -> Mime {
-    Mime(TopLevel::Multipart,
-         SubLevel::Ext("form-data".into()),
-         vec![(Attr::Ext("boundary".into()), Value::Ext(bound.into()))])
-}
-
-
-// let resp : hyper::Request<Streaming> = MultipartRequest::new()?.
-// .add_stream(...)?
-// .add_stream(...)?
-// .send()?;
-
-
-
-
-
-
-
-
-
-
-
-
 use std::fs::{File, metadata};
-use std::io::prelude::*;
 use std::vec::*;
 use std::io::BufReader;
-use std::io::Write;
+use std::io::{Write, Read};
 use std::path::{PathBuf, Path};
 use regex::Regex;
 
 use serde_json;
 
+use crypto::digest::Digest;
+use crypto::whirlpool::Whirlpool;
+
+use ops::multipart::*;
 use ops::interface::*;
 use ops::error::ResponseError;
+
+use hyper::status::StatusCode;
+use hyper::mime::Mime;
+use hyper_native_tls::NativeTlsClient;
+use hyper::client::Request;
+use hyper::method::Method;
+use hyper::net::HttpsConnector;
 
 #[derive(Serialize, Deserialize)]
 pub struct Input {
@@ -146,9 +38,11 @@ pub struct MultipartRequestMetadata {
     enable_net: bool,
 }
 
+
 fn find_srpm_regex_match(dir: &PathBuf, srpm_regex: &String) -> Result<Option<PathBuf>> {
 
-    writeln!(&mut ::std::io::stderr(), "base dir: {:?}", dir);
+    writeln!(&mut ::std::io::stderr(), "base dir: {:?}", dir)
+        .chain_err(|| "")?;
 
     let re = Regex::new(srpm_regex)
         .chain_err(|| "srpm regex failed to parse")?;
@@ -161,8 +55,9 @@ fn find_srpm_regex_match(dir: &PathBuf, srpm_regex: &String) -> Result<Option<Pa
         if path.is_file() {
             let path_str = path.to_str().ok_or("Failed to convert path to string")?;
             if re.is_match(path_str) {
-                    writeln!(&mut ::std::io::stderr(), "Final pick: {:?}", path);
-                    return Ok(Some(PathBuf::from(path_str)));
+                writeln!(&mut ::std::io::stderr(), "Final pick: {:?}", path)
+                    .chain_err(|| "")?;
+                return Ok(Some(PathBuf::from(path_str)));
             }
         }
     }
@@ -178,7 +73,7 @@ fn calculate_whirlpool(path: &PathBuf) -> Result<[u8; 64]> {
     let mut buffer = [0u8; 16384];
     let mut bytes_read: u64 = 0;
 
-    while true {
+    loop {
         let n = f.read(&mut buffer[..])
             .chain_err(|| "Failed to read file")?;
         if n == 0 {
@@ -188,6 +83,12 @@ fn calculate_whirlpool(path: &PathBuf) -> Result<[u8; 64]> {
         bytes_read += n as u64;
         digest.input(&buffer[0..n]);
     }
+
+    writeln!(&mut ::std::io::stderr(),
+             "Digest calculated over {:?} bytes",
+             bytes_read)
+            .chain_err(|| "Failed to write out bytes_read")?;
+
     Ok(digest_result)
 }
 
@@ -223,8 +124,8 @@ pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
               size_srpm,
               max_n_bytes);
     }
-    let mut f = File::open(path_srpm_str).chain_err(|| "fun")?;
-    let mut reader = BufReader::new(f);
+    let f = File::open(path_srpm_str).chain_err(|| "fun")?;
+    let reader = BufReader::new(f);
 
     let name_srpm = path_srpm
         .file_name()
@@ -238,7 +139,7 @@ pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
         .chain_err(|| "Failed to create native tls client")?;
     let connector = HttpsConnector::new(ssl);
 
-    let mut meta_json = serde_json::to_string(&meta)
+    let meta_json = serde_json::to_string(&meta)
         .chain_err(|| "Failed to serialize metadata")?;
 
     let url = input
@@ -247,9 +148,7 @@ pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
         .parse()
         .chain_err(|| "Failed to parse url")?;
 
-    let boundary = "stuff";
-
-    let mut request = Request::with_connector(Method::Post, url, &connector)
+    let request = Request::with_connector(Method::Post, url, &connector)
         .chain_err(|| "Failed to create POST request")?;
 
     let boundary = "randomarbitrarystuffwhichisprettysureorthogonalslashunique";
@@ -273,7 +172,8 @@ pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
 
     writeln!(&mut ::std::io::stderr(),
              "Response received: {:?}",
-             response);
+             response)
+            .chain_err(|| "Failed to write out response received")?;
 
     match response.status {
         StatusCode::BadRequest => Err(ResponseError::InvalidRequest.into()),
@@ -286,7 +186,8 @@ pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
             snip.copy_from_slice(&digest[0..32]);
             let version = ResourceVersion { digest: snip };
 
-            writeln!(&mut ::std::io::stderr(), "digest: {}", version);
+            writeln!(&mut ::std::io::stderr(), "digest: {}", version)
+                .chain_err(|| "Failed to write out version")?;
 
             let version = serde_json::to_string(&version)
                 .chain_err(|| "Failed to convert version to json")?;

@@ -17,6 +17,11 @@ extern crate regex;
 
 extern crate random;
 
+extern crate crypto;
+
+extern crate hyper;
+extern crate hyper_native_tls;
+
 // Import the macro. Don't forget to add `error-chain` in your
 // `Cargo.toml`!
 #[macro_use]
@@ -48,10 +53,6 @@ use errors::*;
 
 use regex::Regex;
 
-
-use serde_json::Error;
-
-use std::io::prelude::*;
 use std::path::PathBuf;
 use std::io::BufReader;
 
@@ -62,7 +63,7 @@ fn dispatch(args: &mut std::env::Args) -> Result<()> {
 
     // read params from stdin
     let stdin = std::io::stdin();
-    let mut handle = stdin.lock();
+    let handle = stdin.lock();
     let handle = BufReader::new(handle);
 
     let re = Regex::new(r"^(?:(?:\./|/opt/)(?:resource/)?)?([^/]+)$")
