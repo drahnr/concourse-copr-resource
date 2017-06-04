@@ -231,7 +231,6 @@ pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
         .ok_or("No srpm file name")?
         .to_str()
         .ok_or("Failed to convert to string")?;
-    let name_srpm = String::from(path_srpm_str);
     let mime_srpm: Mime = "application/x-rpm".parse().unwrap();
     let mime_json: Mime = "application/json".parse().unwrap();
 
@@ -253,7 +252,7 @@ pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
     let mut request = Request::with_connector(Method::Post, url, &connector)
         .chain_err(|| "Failed to create POST request")?;
 
-    let boundary = "randomarbitrarystuff";
+    let boundary = "randomarbitrarystuffwhichisprettysureorthogonalslashunique";
 
     let mut multipart = MultipartRequest::from_request(request, Some(&boundary))
         .chain_err(|| "Failed to create multipart request")?;
@@ -264,7 +263,7 @@ pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
     multipart
         .add_stream("srpm",
                     &mut reader.take(max_n_bytes),
-                    Some(name_srpm.as_str()),
+                    Some(name_srpm),
                     Some(mime_srpm))
         .chain_err(|| "Failed to prepare multipart srpm")?;
 
