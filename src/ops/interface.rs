@@ -73,8 +73,6 @@ mod tests {
         let s = r#"{"digest":[171,205,239,1,35,69,103,137]}"#;
         let o = ResourceVersion { digest: b"\xab\xcd\xef\x01\x23\x45\x67\x89".clone() };
         let g: ResourceVersion = serde_json::from_str(s).unwrap();
-        println!("parsed obj: <{}>", g);
-        println!("expected obj: <{}>", o);
         assert!(g == o);
     }
     #[test]
@@ -87,7 +85,6 @@ mod tests {
     fn deser() {
         let o = ResourceVersion { digest: b"\xab\xcd\xef\x01\x23\x45\x67\x89".clone() };
         let g = serde_json::to_string(&o).unwrap();
-        println!("{}", g);
         let g2 = serde_json::from_str::<ResourceVersion>(g.as_str()).unwrap();
         assert!(g2 == o);
     }
