@@ -209,11 +209,13 @@ pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use ops::interface::*;
+    use ops::rout::*;
     #[test]
     fn print() {
         let mut snip = [0u8; 32];
         let version = ResourceVersion { digest: snip };
         let output = Output { version : version };
+        let output = serde_json::to_string(&output).unwrap();
         println!("{}", output);
     }
 }
