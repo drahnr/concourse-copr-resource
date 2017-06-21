@@ -32,6 +32,12 @@ pub struct Input {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct Output {
+    pub version: ResourceVersion,
+    // meta
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct MultipartRequestMetadata {
     project_id: u32,
     chroots: Vec<String>,
@@ -185,15 +191,29 @@ pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
             let mut snip = [0u8; 32];
             snip.copy_from_slice(&digest[0..32]);
             let version = ResourceVersion { digest: snip };
+            let output = Output { version : version };
 
-            writeln!(&mut ::std::io::stderr(), "digest: {}", version)
-                .chain_err(|| "Failed to write out version")?;
+            writeln!(&mut ::std::io::stderr(), "Digest: {}", &output.version)
+                .chain_err(|| "Failed to write digest to stderr")?;
 
-            let version = serde_json::to_string(&version)
+            let output = serde_json::to_string(&output)
                 .chain_err(|| "Failed to convert version to json")?;
-            println!("{}", version);
+            println!("{}", output);
             Ok(())
         }
         _ => Err(ResponseError::InvalidRequest.into()),
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use ops::interface::*;
+    #[test]
+    fn print() {
+        let mut snip = [0u8; 32];
+        let version = ResourceVersion { digest: snip };
+        let output = Output { version : version };
+        println!("{}", output);
     }
 }
