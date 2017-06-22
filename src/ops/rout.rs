@@ -185,12 +185,13 @@ pub fn execute(mut dir: PathBuf, input: Input) -> Result<()> {
         StatusCode::BadRequest => Err(ResponseError::InvalidRequest.into()),
         StatusCode::Forbidden => Err(ResponseError::AuthentificationFailure.into()),
         StatusCode::Created => {
-            let digest = calculate_whirlpool(&path_srpm)
+            let digest : [u8;64] = calculate_whirlpool(&path_srpm)
                 .chain_err(|| "Failed to calculate digest")?;
             // TODO implement serialize for 64 bits instead of cropping
-            let mut snip = [0u8; 32];
-            snip.copy_from_slice(&digest[0..32]);
-            let version = ResourceVersion { digest: snip };
+            let digest : Vec<String> = digest.iter().map(|b| format!("{:02X}", b)).collect();
+            let digest : String = digest.join("");
+
+            let version = ResourceVersion { digest: digest };
             let output = Output { version : version };
 
             writeln!(&mut ::std::io::stderr(), "Digest: {}", &output.version)
@@ -212,8 +213,7 @@ mod tests {
     use ops::rout::*;
     #[test]
     fn print() {
-        let mut snip = [0u8; 32];
-        let version = ResourceVersion { digest: snip };
+        let version = ResourceVersion { digest: "".to_string() };
         let output = Output { version : version };
         let output = serde_json::to_string(&output).unwrap();
         println!("{}", output);

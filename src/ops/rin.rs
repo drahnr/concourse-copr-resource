@@ -16,7 +16,7 @@ pub struct Output {
 }
 
 pub fn execute(_dir: PathBuf, _json_params: Input) -> Result<()> {
-    let version = ResourceVersion { digest: [0;32] };
+    let version = ResourceVersion { digest: "".to_string() };
     let output = Output { version : version};
     let output = serde_json::to_string(&output)
         .chain_err(|| "Failed to convert version to json")?;

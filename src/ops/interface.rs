@@ -37,7 +37,7 @@ impl Default for ResourceParams {
 
 #[derive(Serialize, Deserialize)]
 pub struct ResourceVersion {
-    pub digest: [u8; 32],
+    pub digest: String,
 }
 
 impl PartialEq for ResourceVersion {
@@ -51,9 +51,7 @@ impl PartialEq for ResourceVersion {
 
 impl fmt::Display for ResourceVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for &byte in self.digest.iter() {
-            write!(f, "{:X}", byte)?;
-        }
+        write!(f, "{}", self.digest)?;
         Ok(())
     }
 }
